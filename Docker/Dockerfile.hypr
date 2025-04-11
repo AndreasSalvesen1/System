@@ -1,0 +1,40 @@
+
+FROM archlinux:latest
+
+ENV USER=user
+ENV HOME=/home/$USER
+
+RUN pacman -Sy --noconfirm && \
+    pacman -S --noconfirm sudo git base-devel i3-wm kitty rofi waybar firefox \
+    ttf-dejavu ttf-font-awesome xorg-xhost xorg-xrandr mesa libglvnd neovim
+
+RUN useradd -m $USER && echo "$USER ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+USER $USER
+WORKDIR /home/$USER
+
+RUN git clone https://github.com/AndreasSalvesen1/System /home/user/System || echo "[=] Repo already exists or clone failed"
+
+COPY startup.sh /usr/local/bin/startup.sh
+RUN sudo chmod +x /usr/local/bin/startup.sh
+CMD ["sudo /usr/local/bin/startup.sh"]
+
+RUN mkdir -p ~/.config/i3 && \
+    echo 'set $mod Mod4' > ~/.config/i3/config && \
+    echo 'font pango:monospace 10' >> ~/.config/i3/config && \
+    echo 'exec_always --no-startup-id env LIBGL_ALWAYS_SOFTWARE=1 KITTY_DISABLE_WAYLAND=1 kitty' >> ~/.config/i3/config && \
+    echo 'bindsym $mod+Return exec env LIBGL_ALWAYS_SOFTWARE=1 KITTY_DISABLE_WAYLAND=1 kitty' >> ~/.config/i3/config && \
+    echo 'bindsym $mod+d exec rofi -show drun' >> ~/.config/i3/config && \
+    echo 'bindsym $mod+Shift+q kill' >> ~/.config/i3/config && \
+    echo 'bindsym $mod+Shift+e exec --no-startup-id returnhost' >> ~/.config/i3/config && \
+    echo 'bindsym $mod+f fullscreen toggle' >> ~/.config/i3/config && \
+    echo 'focus_follows_mouse yes' >> ~/.config/i3/config && \
+    echo 'floating_modifier $mod' >> ~/.config/i3/config
+
+USER root
+RUN mkdir -p /usr/local/bin && \
+    bash -c 'printf "#!/bin/bash\necho shutdown > ~/.cache/exitflag\n" > /usr/local/bin/returnhost' && \
+    chmod +x /usr/local/bin/returnhost
+
+USER $USER
+CMD ["i3"]
